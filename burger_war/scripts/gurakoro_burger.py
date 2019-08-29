@@ -14,7 +14,7 @@ import random
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from sensor_msgs.msg import JointState
-from state_reader.msg import State
+#from state_reader.msg import State
 
 class gurakoro():
     def __init__(self, bot_name):
