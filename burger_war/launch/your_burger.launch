@@ -9,8 +9,9 @@
 
 
     <!-- sample program node -->
-
-    <node pkg="burger_war" type="gurakoro_burger.py" name="randomRun" output="screen"/>
+    <node pkg="burger_war" type="gurakoro_burger.py" name="gurakoro_burger" output="screen">
+      <param name="robot_name" value="$(arg side)" />
+    </node>
 
     <!-- END sample program node -->
 
