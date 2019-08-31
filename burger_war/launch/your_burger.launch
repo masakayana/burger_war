@@ -15,6 +15,7 @@
       <param name="side" value="$(arg side)" />
       <param name="robot_name" value="$(arg robot_name)" />
     </node>
+    <node pkg="find_green" type="find_green_node" name="find_green_node" output="screen"/>
 
     <!-- End of your space  -->
 </launch>
