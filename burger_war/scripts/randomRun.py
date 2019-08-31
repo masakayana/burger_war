@@ -61,7 +61,7 @@ class RandomBot():
         self.cvtest_sub = rospy.Subscriber('state_change', Change, self.stChangeCallback)     #←これを追加
 #        self.cvtest_sub = rospy.Subscriber("move_base/goal", MoveBaseActionGoal, self.goal_callback)  #相対に変更
         self.cvtest_sub = rospy.Subscriber("amcl_pose", PoseWithCovarianceStamped, self.my_place_callback)  #相対に変更
-        self.cvtest_sub = rospy.Subscriber("find_green", Marker, self.find_green_callback)
+#        self.cvtest_sub = rospy.Subscriber("find_green", Marker, self.find_green_callback)
 
 
     def my_place_callback(self, data):
@@ -149,17 +149,17 @@ class RandomBot():
         else:
             self.point_counter = 0
 
-    def find_green_callback(self, data):
-        if data.est_dis == 0:    #値が入っていないので無視。
-            return None
-        else: # 値が入っている時は、追跡
+    #def find_green_callback(self, data):
+        #if data.est_dis == 0:    #値が入っていないので無視。
+        #    return None
+        #else: # 値が入っている時は、追跡
             #self.client.cancel_all_goals()   #最初にgoalをキャンセルして、黙らせる
             #self.state = 'find'
             #self.green_dis = data.est_dis
             #self.pre_green_center_x = self.green_center_x
             #self.green_center_x = data.center_x
             #self.navi_flag = self.OFF
-            print("****** Find Enemy! ****",self.state)
+       #     print("****** Find Enemy! ****",self.state)
             #self.timer_counter = 0
 
     def setGoal(self,x,y,yaw):
