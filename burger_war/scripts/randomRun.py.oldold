@@ -1,0 +1,245 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import rospy
+import random
+
+from geometry_msgs.msg import Twist
+from state_reader.msg import State
+from state_reader.msg import Change
+from find_green.msg import Marker
+#from std_msgs.msg import String
+#from sensor_msgs.msg import Image
+#from cv_bridge import CvBridge, CvBridgeError
+#import cv2
+import tf
+
+
+import actionlib
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal, MoveBaseActionGoal
+from geometry_msgs.msg import Vector3, PoseWithCovarianceStamped
+import actionlib_msgs
+
+
+class RandomBot():
+    def __init__(self, bot_name):
+        self.name = rospy.get_param("~robot_name")
+        self.color = rospy.get_param("~side")
+        # velocity publisher
+        self.vel_pub = rospy.Publisher('cmd_vel', Twist,queue_size=1)
+        self.client = actionlib.SimpleActionClient('move_base',MoveBaseAction)
+        self.my_posi = []
+        self.my_place = 0
+        self.enemy_place = 0
+        self.pre_enemy_place = 0
+        self.now_point_num = 0
+        self.now_point_score = 0
+        self.pre_point_num = 0
+        self.pre_point_score = 0
+        self.point_counter = 0
+        self.green_flag = False
+        self.pre_time_stamp = rospy.Time.now()
+        self.NORTH = 1
+        self.EAST = 2
+        self.SOUTH = 3
+        self.WEST = 4
+
+        self.vel_pub = rospy.Publisher('cmd_vel', Twist,queue_size=1)
+
+        # # 状態データ;
+        self.cvtest_sub = rospy.Subscriber('state_change', Change, self.stChangeCallback)     #←これを追加
+        self.cvtest_sub = rospy.Subscriber("move_base/goal", MoveBaseActionGoal, self.goal_callback)  #相対に変更
+        self.cvtest_sub = rospy.Subscriber("amcl_pose", PoseWithCovarianceStamped, self.my_place_callback)  #相対に変更
+        self.cvtest_sub = rospy.Subscriber("find_green", Marker, self.find_green_callback)
+
+    def my_place_callback(self, data):
+        pos = data.pose.pose
+        e = tf.transformations.euler_from_quaternion((pos.orientation.x, pos.orientation.y, pos.orientation.z, pos.orientation.w))
+        self.my_posi = [pos.position.x, pos.position.y, e[2]]
+        print "my place ({0},{1},{2}),".format  (self.my_posi[0],self.my_posi[1],self.my_posi[2])
+        if self.my_posi[0] > self.my_posi[1]:
+            if self.my_posi[0] > -self.my_posi[1]:
+                self.my_place = self.NORTH #place_N
+            else :
+                self.my_place = self.EAST #place_E
+        else :
+            if self.my_posi[0] > -self.my_posi[1]:
+                self.my_place = self.WEST #place_W
+            else :
+                self.my_place = self.SOUTH #place_S
+        print "my_place=",self.my_place
+
+    def goal_callback(self, data):
+        pos = data.goal.target_pose.pose
+        print "[({0},{1},0.0),(0.0,0.0,{2},{3})],".format  (pos.position.x,pos.position.y,pos.orientation.z,pos.orientation.w)
+        #self.quaternion_to_euler(pos.orientation)
+        e = tf.transformations.euler_from_quaternion((pos.orientation.x, pos.orientation.y, pos.orientation.z, pos.orientation.w))
+        print "e=",e
+        return Vector3(x=e[0], y=e[1], z= e[2])
+
+    # ### 状態データTopic Subscribe時のCallback関数
+    def stChangeCallback(self, data):
+        self.now_point_num = data.point_num[0]
+        self.now_point_score = data.point_score[0]
+
+        if data.point_score[0] < 0 and (self.now_point_num != self.pre_point_num or self.now_point_score != self.pre_point_score): # 敵が得点を得た時
+            if data.point_name[0] == "Tomato_N" \
+               or data.point_name[0] == "Omelette_N" \
+               or data.point_name[0] == "FriedShrimp_N" :
+                self.enemy_place = 1 #place_N
+            elif data.point_name[0] == "Tomato_S" \
+               or data.point_name[0] == "FriedShrimp_W" \
+               or data.point_name[0] == "Pudding_N" :
+                self.enemy_place = 2 #place_W
+            elif data.point_name[0] == "Omelette_S" \
+               or data.point_name[0] == "FriedShrimp_E" \
+               or data.point_name[0] == "OctopusWiener_N" :
+                self.enemy_place = 3 #place_E
+            elif data.point_name[0] == "Pudding_S" \
+               or data.point_name[0] == "FriedShrimp_S" \
+               or data.point_name[0] == "OctopusWiener_S" :
+                self.enemy_place = 4 #place_S
+            elif data.point_name[0] == "RE_L" \
+               or data.point_name[0] == "BL_L" :
+                self.enemy_place = 5 #左側ポイントを取られた！
+            elif data.point_name[0] == "RE_R" \
+               or data.point_name[0] == "BL_R" :
+                self.enemy_place = 6 #右側ポイントを取られた！
+
+    def get_point_object_in_order(self):
+        point_order_for_r = [17,19,16,10,7,21,15,12,9]
+        # point_order_for_r = [17,11,16,10,7,13,15,12,9,14,8,6]
+        point_order_for_b = [14,18,15,9,12,20,16,7,10]
+        # point_order_for_b = [14,8,15,9,12,6,16,7,10,17,11,13]
+        angle_degree = 40
+        point_order = 0
+        target_position_x = [0,0,0,0,0,0, 0.9, 0.0,  0.9,  0.0,-0.0,-0.9, -0.0,  -0.9,0.45,   0.0,   0.0,-0.45,0.7,-0.7,0.7,-0.7]
+        target_position_y = [0,0,0,0,0,0,0.43,0.60,-0.43,-0.60,0.60,0.43,-0.60, -0.43,0.0,  -0.60,   0.60, 0.0,0.0,0.0,0.0,0.0]
+        target_orientation_yaw = [0,0,0,0,0,0,angle_degree/180*3.14,   0,-angle_degree/180*3.14,    0,   3.14,3.14-angle_degree/180*3.14,    3.14,3.14+angle_degree/180*3.14,  3.14, 1.57, -1.57,   0, 3.14,0,1.57,-1.57]
+        if (self.point_counter < 9):
+            if (self.color == "r"):
+                point_order = point_order_for_r[self.point_counter]
+            elif (self.color == "b"):
+                point_order = point_order_for_b[self.point_counter]
+            self.point_counter += 1
+            self.setGoal(target_position_x[point_order], target_position_y[point_order], target_orientation_yaw[point_order])
+        else:
+            self.point_counter = 0
+
+    def find_green_callback(self, data):
+        self.client.cancel_all_goals()   #最初にgoalをキャンセルして、黙らせる
+        twist = Twist()
+        print(self.green_flag)
+        if self.pre_time_stamp == data.time_stamp:   #タイムスタンプが変わってないので無視。
+            self.green_flag = False
+            return None
+        else:
+            self.pre_time_stamp = data.time_stamp
+            if data.est_dis == 0:    #値が入っていないので無視。
+                return None
+            elif abs(data.center_x) < 80:    #ほぼ真ん中にいたら前進しながら曲がりましょう
+                twist.linear.x = 0.2; twist.linear.y = 0; twist.linear.z = 0
+                twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = -data.center_x / 80
+                if data.est_dis < 0.5:
+                    twist.linear.x = 0.0    #近づいたら止まりましょう。
+                self.vel_pub.publish(twist)
+            else:                           #端っこならとりあえず回りましょう
+                twist.linear.x = 0; twist.linear.y = 0; twist.linear.z = 0
+                twist.angular.x = 0; twist.angular.y = 0; twist.angular.z = -data.center_x / 200
+                self.vel_pub.publish(twist)
+            self.green_flag = True
+
+    def setGoal(self,x,y,yaw):
+        self.client.wait_for_server()
+
+        goal = MoveBaseGoal()
+        goal.target_pose.header.frame_id = self.name + "/map"
+        goal.target_pose.header.stamp = rospy.Time.now()
+        goal.target_pose.pose.position.x = x
+        goal.target_pose.pose.position.y = y
+
+        # Euler to Quartanion
+        q=tf.transformations.quaternion_from_euler(0,0,yaw)
+        goal.target_pose.pose.orientation.x = q[0]
+        goal.target_pose.pose.orientation.y = q[1]
+        goal.target_pose.pose.orientation.z = q[2]
+        goal.target_pose.pose.orientation.w = q[3]
+
+        self.client.send_goal(goal)
+        wait = self.client.wait_for_result()
+        if not wait:
+            rospy.logerr("Action server not available!")
+            rospy.signal_shutdown("Action server not available!")
+        else:
+            return self.client.get_result()
+
+    def move_search_point(self, my_place, enemy_place):
+        # 不正値チェック
+        if my_place == 0 or my_place > 4:
+            print("No or illegal data in my_place.")
+            return False
+        if enemy_place == 0 or enemy_place > 4:
+            print("No or illegal data in enemy_place.")
+            return False
+        # 不正値チェック終わり
+        # 移動位置計算
+        if abs(my_place - enemy_place) == 2:
+            print("enemy is opposite.\nI don't move.")
+            return True
+        elif abs(my_place - enemy_place) == 0:
+            print("enemy is in the same zone.\nI don't move.")
+            return True
+        else:
+            list_move_point     = [ "ne",   "es",   "sw",   "wn"]
+            list_move_point_x   = [0.325, -0.325, -0.325,  0.325]
+            list_move_point_y   = [-0.325,  -0.325, 0.325, 0.325]
+            list_move_point_yaw = [0.349, -0.349, -2.79, 2.79]
+            if (my_place - enemy_place == -1) or (my_place - enemy_place == 3):
+                move_point     = list_move_point[my_place - 1]
+                move_point_x   = list_move_point_x[my_place - 1]
+                move_point_y   = list_move_point_y[my_place - 1]
+                move_point_yaw = list_move_point_yaw[my_place - 1] + 3.14
+            elif (my_place - enemy_place == 1) or (my_place - enemy_place == -3):
+                move_point     = list_move_point[enemy_place - 1]
+                move_point_x   = list_move_point_x[enemy_place - 1]
+                move_point_y   = list_move_point_y[enemy_place - 1]
+                move_point_yaw = list_move_point_yaw[enemy_place - 1]
+        print "I should move to",
+        print(move_point, move_point_x, move_point_y, move_point_yaw)
+        self.setGoal(move_point_x, move_point_y, move_point_yaw)
+        # 移動位置計算終わり
+
+
+    def strategy(self):
+        r = rospy.Rate(5) # change speed 5fps
+
+        self.setGoal(-0.5,0,0)
+        self.setGoal(-0.5,0,3.1415/2)
+
+        self.setGoal(0,0.5,0)
+        self.setGoal(0,0.5,3.1415)
+
+        self.setGoal(-0.5,0,-3.1415/2)
+
+        self.setGoal(0,-0.5,0)
+        self.setGoal(0,-0.5,3.1415)
+
+    def strategy1(self):
+        r = rospy.Rate(100) # change speed 1fps
+        while not rospy.is_shutdown():
+            if (not self.green_flag):
+                self.get_point_object_in_order()
+            print("test")
+            # self.calcState()
+            # twist = self.calcTwist()
+            # self.vel_pub.publish(twist)
+            self.pre_enemy_place = self.enemy_place
+            self.pre_point_num = self.now_point_num
+            self.pre_point_score = self.now_point_score
+
+            r.sleep()
+
+
+if __name__ == '__main__':
+    rospy.init_node('random_run')
+    bot = RandomBot('Random')
+    bot.strategy1()

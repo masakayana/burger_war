@@ -42,7 +42,6 @@ class RandomBot():
         self.WEST = 4
         self.LEFT = 5
         self.RIGHT = 6
-        self.LOST = 7
         self.ON = 1
         self.OFF = 0
         self.navi_flag = self.ON # ナビゲーションで動いているか、適当に動いているか
@@ -53,9 +52,8 @@ class RandomBot():
         self.Atack_Direction = 0
         self.Atack_counter = 0
 
-        self.state = 'go'
+        self.state = 0
         self.counter = 0
-        self.timer_counter = 0
 
         # # 状態データ;
         self.cvtest_sub = rospy.Subscriber('state_change', Change, self.stChangeCallback)     #←これを追加
@@ -112,22 +110,21 @@ class RandomBot():
                 self.enemy_place = self.RIGHT #右側ポイントを取られた！
                 self.client.cancel_all_goals()   #最初にgoalをキャンセルして、黙らせる
             # 敵と自分の位置から状況を判断
-            if self.state != 'find':
-                # 敵が反対側のエリア　無視
-                if abs(self.my_place - self.enemy_place) == 2:
-                    print("enemy is opposite.\n")
-                # 敵が同じエリア　下手に動かない。　無視
-                elif abs(self.my_place - self.enemy_place) == 0:
-                    print("enemy is in the same zone.\n")
-                # 敵が反時計回り方向の隣のエリア
-                elif (self.my_place - self.enemy_place == -1) or (self.my_place - self.enemy_place == 3):
-                    self.client.cancel_all_goals()   #最初にgoalをキャンセルして、黙らせる
-                    print "I should move to CCW",
-                # 敵が時計回り方向の隣のエリア
-                elif (self.my_place - self.enemy_place == 1) or (self.my_place - self.enemy_place == -3):
-                    self.client.cancel_all_goals()   #最初にgoalをキャンセルして、黙らせる
-                    print "I should move to CW",
-               # 移動位置計算終わり
+            # 敵が反対側のエリア　無視
+            if abs(my_place - enemy_place) == 2:
+                print("enemy is opposite.\nI don't move.")
+            # 敵が同じエリア　下手に動かない。　無視
+            elif abs(my_place - enemy_place) == 0:
+                print("enemy is in the same zone.\nI don't move.")
+            # 敵が反時計回り方向の隣のエリア
+            elif (my_place - enemy_place == -1) or (my_place - enemy_place == 3):
+                self.client.cancel_all_goals()   #最初にgoalをキャンセルして、黙らせる
+                print "I should move to CCW",
+            # 敵が時計回り方向の隣のエリア
+            elif (my_place - enemy_place == 1) or (my_place - enemy_place == -3):
+                self.client.cancel_all_goals()   #最初にgoalをキャンセルして、黙らせる
+                print "I should move to CW",
+            # 移動位置計算終わり
 
     def get_point_object_in_order(self):
         point_order_for_r = [17,19,16,10,7,21,15,12,9]
@@ -154,13 +151,10 @@ class RandomBot():
             return None
         else: # 値が入っている時は、追跡
             self.client.cancel_all_goals()   #最初にgoalをキャンセルして、黙らせる
-            self.state = 'find'
+	    self.state == 'find'
             self.green_dis = data.est_dis
             self.pre_green_center_x = self.green_center_x
             self.green_center_x = data.center_x
-            self.navi_flag = self.OFF
-            print("****** Find Enemy! ****",self.state)
-            self.timer_counter = 0
 
     def setGoal(self,x,y,yaw):
         self.client.wait_for_server()
@@ -184,7 +178,6 @@ class RandomBot():
             rospy.logerr("Action server not available!")
             rospy.signal_shutdown("Action server not available!")
         else:
-            print("******self.client.get_result()=",self.client.get_result())
             return self.client.get_result()
 
     def move_search_point(self, my_place, enemy_place):
@@ -198,94 +191,69 @@ class RandomBot():
         if my_place == 0 or my_place > 4:
             print("No or illegal data in my_place.",my_place)
             return False
-        if enemy_place == 0 or enemy_place > 7:
+        if enemy_place == 0 or enemy_place > 6:
             print("No or illegal data in enemy_place.",enemy_place)
             return False
         # 不正値チェック終わり
         # 移動位置計算
         if self.state == 'find':
             print("Find enemy!")
-            self.navi_flag = self.OFF
         # 自分車体の左側のポイントを取られてしまった。
         elif enemy_place == self.LEFT:
             self.state = 'stop'
             self.counter = 32 # 左回転
-            self.navi_flag = self.OFF
+            twist = self.calcTwist() # 各状態での動作指令値設定
+            navi_flag = self.OFF
         # 自分車体の右側のポイントを取られてしまった。
         elif enemy_place == self.RIGHT:
             self.state = 'stop'
             self.counter = 31 # 右回転
-            self.navi_flag = self.OFF
+            navi_flag = self.OFF
         # 敵が反対側のエリア　無視
-        elif abs(my_place - enemy_place) == 2 and (enemy_place <= 4):
-            print("enemy is opposite.\n")
+        elif abs(my_place - enemy_place) == 2:
+            print("enemy is opposite.\nI don't move.")
             self.get_point_object_in_order()
-            self.navi_flag = self.ON
+            navi_flag = self.ON
         # 敵が同じエリア　下手に動かない。　無視
-        elif abs(my_place - enemy_place) == 0 and (enemy_place <= 4):
-            print("enemy is in the same zone.\n")
+        elif abs(my_place - enemy_place) == 0:
+            print("enemy is in the same zone.\nI don't move.")
             self.get_point_object_in_order()
-            self.navi_flag = self.ON
-       # 敵が反時計回り方向の隣のエリア
-        elif ((my_place - enemy_place == -1) or (my_place - enemy_place == 3)) and (enemy_place <= 4):
+            navi_flag = self.ON
+       # 敵が半時計回り方向の隣のエリア
+        elif (my_place - enemy_place == -1) or (my_place - enemy_place == 3):
             move_point     = list_move_point[my_place - 1]
             move_point_x   = list_move_point_x[my_place - 1]
             move_point_y   = list_move_point_y[my_place - 1]
             move_point_yaw = list_move_point_yaw[my_place - 1] + 3.14
-            print "I moved to CCW",
+            print "I should move to",
             print(move_point, move_point_x, move_point_y, move_point_yaw)
             self.setGoal(move_point_x, move_point_y, move_point_yaw)
             # 首振り設定
             self.state = 'stop'
             self.counter = 31 # 右回転
-            self.navi_flag = self.OFF
-            self.timer_counter = 0
+            navi_flag = self.OFF
         # 敵が時計回り方向の隣のエリア
-        elif ((my_place - enemy_place == 1) or (my_place - enemy_place == -3)) and (enemy_place <= 4):
+        elif (my_place - enemy_place == 1) or (my_place - enemy_place == -3):
             move_point     = list_move_point[enemy_place - 1]
             move_point_x   = list_move_point_x[enemy_place - 1]
             move_point_y   = list_move_point_y[enemy_place - 1]
             move_point_yaw = list_move_point_yaw[enemy_place - 1]
-            print "I moved to CW",
+            print "I should move to",
             print(move_point, move_point_x, move_point_y, move_point_yaw)
             self.setGoal(move_point_x, move_point_y, move_point_yaw)
             # 首振り設定
             self.state = 'stop'
             self.counter = 32 # 左回転
-            self.navi_flag = self.OFF
-            self.timer_counter = 0
+            navi_flag = self.OFF
         else:
-            if self.navi_flag == self.ON: # ナビゲーションがONの時
-                print("enemy is in the same zone.\nI don't move.")
+            if navi_flag == self.ON: # ナビゲーションがONの時
                 self.get_point_object_in_order()
             else: # ナビゲーションがオフの時
-                self.calcState()
-        if self.navi_flag == self.OFF: # ナビゲーションがOFFの時
-            twist = self.calcTwist() # 各状態での動作指令値設定
-            self.vel_pub.publish(twist)
+                twist = self.calcTwist() # 各状態での動作指令値設定
+                self.vel_pub.publish(twist)
 
         # 移動位置計算終わり
 
-
-    def calcState(self):
-        '''
-        update robot state 'go' or 'back'
-        '''
-        if self.counter == 31 and self.wheel_rot_l - self.wheel_rot_r < 45:
-            self.state = 'migi'
-        elif self.counter == 31:
-            self.counter = 32
-
-        if self.counter == 32 and self.wheel_rot_r - self.wheel_rot_l < 45:
-            self.state = 'hidari'
-        elif self.counter == 32:
-            self.counter = 31
-
-        # 探索に時間制限を設ける
-        if self.timer_counter > 100:
-            self.navi_flag = self.ON
-        else:
-            self.timer_counter += 1
 
     def calcTwist(self):
         '''
@@ -313,41 +281,27 @@ class RandomBot():
 
         #敵を追跡
         elif self.state == 'find':
-            if self.green_dis < 1.0: # 近くにいる場合
-                if abs(self.green_center_x) < 60:    #ほぼ真ん中にいたら前進しながら曲がりましょう
-                    #敵の速度から攻撃方向を見定める
-                    if self.Atack_counter < 3:
-                        print("***Atack_counter < 3***")
-                        x = 0.0
-                        th = 0.0
-                        self.Atack_Direction = self.pre_green_center_x - self.green_center_x
-                        self.Atack_counter += 1
-                    #攻撃開始！
-#                    elif self.Atack_counter >= 3:
+            if abs(data.center_x) < 60:    #ほぼ真ん中にいたら前進しながら曲がりましょう
+                #敵の速度から攻撃方向を見定める
+                if self.Atack_counter < 3:
+                    x = 0.0
+                    th = 0.0
+                    self.Atack_Direction = self.pre_green_center_x - self.green_center_x
+                    self.Atack_counter += 1
+                #攻撃開始！
+#                elif self.Atack_counter >= 3:
+                else:
+                    #敵が右に動いている時 敵が画面左側(-0.3)の位置にいるようにしながら接近
+                    if self.Atack_Direction >= 0:
+                        x = 0.2
+                        th = -1 * (self.green_center_x + 0.3)
+                    #敵が左に動いている時 敵が画面左側(0.3)の位置にいるようにしながら接近
                     else:
-                        print("***Atack_counter >= 3***")
-                        #敵が右に動いている時 敵が画面左側(-0.3)の位置にいるようにしながら接近
-                        if self.Atack_Direction >= 0:
-                            x = 0.2
-                            th = -1 * (0.01*self.green_center_x + 0.3)
-                        #敵が左に動いている時 敵が画面左側(0.3)の位置にいるようにしながら接近
-                        else:
-                            x = 0.2
-                            th = -1 * (0.01*self.green_center_x - 0.3)
-                else:      #微妙に近づく
-                    print("***jiri rotation***")
-                    x = 0.1
-                    th = -0.2 * self.green_center_x *0.01
+                        x = 0.2
+                        th = -1 * (self.green_center_x - 0.3)
             else:      #端っこならとりあえず回りましょう
-                print("***else rotation***")
                 x = 0.0
-                th = -0.2 * self.green_center_x *0.01
-
-            # 探索に時間制限を設ける
-            if self.timer_counter > 100:
-                self.navi_flag = self.ON
-            else:
-                self.timer_counter += 1
+                th = -0.2 * self.green_center_x / abs(self.green_center_x)
 
         elif self.state == 'stop':
             x = 0
@@ -364,13 +318,7 @@ class RandomBot():
         return twist
 
     def strategy1(self):
-        r = rospy.Rate(5) # change speed 1fps
-        if (self.color == "r"):
-            self.my_place = self.SOUTH
-            self.enemy_place = self.LOST
-        elif (self.color == "b"):
-            self.my_place = self.NORTH
-            self.enemy_place = self.LOST
+        r = rospy.Rate(100) # change speed 1fps
         while not rospy.is_shutdown():
             self.move_search_point(self.my_place,self.enemy_place) # 敵の位置判定と状態設定、ナビ動作
             self.pre_point_num = self.now_point_num
