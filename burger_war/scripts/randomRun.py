@@ -159,7 +159,7 @@ class RandomBot():
             #self.pre_green_center_x = self.green_center_x
             #self.green_center_x = data.center_x
             #self.navi_flag = self.OFF
-            #print("****** Find Enemy! ****",self.state)
+            print("****** Find Enemy! ****",self.state)
             #self.timer_counter = 0
 
     def setGoal(self,x,y,yaw):
