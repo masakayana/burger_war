@@ -1,0 +1,108 @@
+data: {
+  "players": {
+    "b": "enemy", 
+    "r": "you"
+  }, 
+  "ready": {
+    "b": true, 
+    "r": true
+  }, 
+  "scores": {
+    "b": 40, 
+    "r": 10
+  }, 
+  "state": "end", 
+  "targets": [
+    {
+      "name": "BL_B", 
+      "player": "r", 
+      "point": "5"
+    }, 
+    {
+      "name": "BL_L", 
+      "player": "n", 
+      "point": "5"
+    }, 
+    {
+      "name": "BL_R", 
+      "player": "r", 
+      "point": "5"
+    }, 
+    {
+      "name": "RE_B", 
+      "player": "b", 
+      "point": "5"
+    }, 
+    {
+      "name": "RE_L", 
+      "player": "n", 
+      "point": "5"
+    }, 
+    {
+      "name": "RE_R", 
+      "player": "b", 
+      "point": "5"
+    }, 
+    {
+      "name": "Tomato_N", 
+      "player": "b", 
+      "point": "1"
+    }, 
+    {
+      "name": "Tomato_S", 
+      "player": "n", 
+      "point": "1"
+    }, 
+    {
+      "name": "Omelette_N", 
+      "player": "n", 
+      "point": "1"
+    }, 
+    {
+      "name": "Omelette_S", 
+      "player": "n", 
+      "point": "1"
+    }, 
+    {
+      "name": "Pudding_N", 
+      "player": "n", 
+      "point": "1"
+    }, 
+    {
+      "name": "Pudding_S", 
+      "player": "n", 
+      "point": "1"
+    }, 
+    {
+      "name": "OctopusWiener_N", 
+      "player": "n", 
+      "point": "1"
+    }, 
+    {
+      "name": "OctopusWiener_S", 
+      "player": "n", 
+      "point": "1"
+    }, 
+    {
+      "name": "FriedShrimp_N", 
+      "player": "r", 
+      "point": "1"
+    }, 
+    {
+      "name": "FriedShrimp_E", 
+      "player": "n", 
+      "point": "1"
+    }, 
+    {
+      "name": "FriedShrimp_W", 
+      "player": "n", 
+      "point": "1"
+    }, 
+    {
+      "name": "FriedShrimp_S", 
+      "player": "n", 
+      "point": "1"
+    }
+  ]
+}
+
