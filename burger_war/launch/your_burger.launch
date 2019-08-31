@@ -11,7 +11,6 @@
        <arg name="robot_name" value="$(arg robot_name)" />
        <arg name="side" value="$(arg side)" />
     </include>
-    <node pkg="find_green" type="find_green_node" name="find_green_node" output="screen"/>
     <node pkg="burger_war" type="randomRun.py" name="randomRun" output="screen">
       <param name="side" value="$(arg side)" />
       <param name="robot_name" value="$(arg robot_name)" />
