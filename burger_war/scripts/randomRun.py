@@ -153,14 +153,14 @@ class RandomBot():
         if data.est_dis == 0:    #値が入っていないので無視。
             return None
         else: # 値が入っている時は、追跡
-            self.client.cancel_all_goals()   #最初にgoalをキャンセルして、黙らせる
-            self.state = 'find'
-            self.green_dis = data.est_dis
-            self.pre_green_center_x = self.green_center_x
-            self.green_center_x = data.center_x
-            self.navi_flag = self.OFF
-            print("****** Find Enemy! ****",self.state)
-            self.timer_counter = 0
+            #self.client.cancel_all_goals()   #最初にgoalをキャンセルして、黙らせる
+            #self.state = 'find'
+            #self.green_dis = data.est_dis
+            #self.pre_green_center_x = self.green_center_x
+            #self.green_center_x = data.center_x
+            #self.navi_flag = self.OFF
+            #print("****** Find Enemy! ****",self.state)
+            #self.timer_counter = 0
 
     def setGoal(self,x,y,yaw):
         self.client.wait_for_server()
