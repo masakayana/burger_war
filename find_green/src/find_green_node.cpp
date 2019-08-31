@@ -51,7 +51,7 @@ public:
     bitwise_not(img,img);
     bitwise_and(green,img,img);
     cv::Mat lower_falf_img(img, cv::Rect(0, img.rows / 3, img.cols, img.rows * 2 / 3));
-    cv::threshold(lower_falf_img, lower_falf_img, 50, 255, CV_THRESH_BINARY);
+    cv::threshold(lower_falf_img, lower_falf_img, 90, 255, CV_THRESH_BINARY);
     // cv::GaussianBlur(lower_falf_img, lower_falf_img, cv::Size(9, 9), 2, 2);
     //いろいろ画像処理　終わり
     //輪郭検知
